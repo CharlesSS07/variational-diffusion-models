@@ -16,7 +16,9 @@ from accelerate import Accelerator
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.datasets import CIFAR10
+from torchvision.datasets import CIFAR10, CelebA
+from torchvision.transforms import functional as F
+from torchvision.transforms import Compose, Resize, ToTensor
 from tqdm.auto import tqdm
 
 
@@ -185,13 +187,23 @@ def maybe_unpack_batch(batch):
     else:
         return batch, None
 
-
 def make_cifar(*, train, download):
     return CIFAR10(
         root="data",
         download=download,
         train=train,
         transform=transforms.Compose([transforms.ToTensor()]),
+    )
+
+def make_celeb_a(*, train, download, size=48):
+    return CelebA(
+        root="data",
+        download=download,
+        split='train' if train else 'valid',
+        transform=transforms.Compose([
+            transforms.Resize(size),
+            transforms.ToTensor()
+        ])
     )
 
 

@@ -78,7 +78,7 @@ class VDM(nn.Module):
     def forward(self, batch, *, noise=None):
         x, label = maybe_unpack_batch(batch)
         assert x.shape[1:] == self.image_shape
-        assert 0.0 <= x.min() and x.max() <= 1.0
+        assert 0.0 <= x.min() and x.max() <= 1.0, f'min: {x.min()}, max: {x.max()}'
         bpd_factor = 1 / (np.prod(x.shape[1:]) * np.log(2))
 
         # Convert image to integers in range [0, vocab_size - 1].
@@ -203,3 +203,4 @@ class LearnedLinearSchedule(nn.Module):
 
     def forward(self, t):
         return self.b + self.w.abs() * t
+

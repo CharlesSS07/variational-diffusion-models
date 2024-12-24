@@ -5,6 +5,7 @@ from argparse import BooleanOptionalAction
 
 import torch
 import yaml
+import multiprocessing
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 from ema_pytorch import EMA
@@ -24,7 +25,7 @@ from utils import (
     init_config_from_args,
     init_logger,
     log,
-    make_cifar,
+    make_cifar, make_celeb_a,
     print_model_summary,
     sample_batched,
 )
@@ -34,6 +35,8 @@ from vdm_unet import UNetVDM
 
 def main():
     parser = argparse.ArgumentParser()
+
+    pool_size = multiprocessing.cpu_count()
 
     # Architecture
     parser.add_argument("--embedding-dim", type=int, default=128)
@@ -46,7 +49,7 @@ def main():
     parser.add_argument("--attention-everywhere", action=BooleanOptionalAction, default=False)
 
     # Training
-    parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--noise-schedule", type=str, default="fixed_linear")
     parser.add_argument("--gamma-min", type=float, default=-13.3)
     parser.add_argument("--gamma-max", type=float, default=5.0)
@@ -55,11 +58,11 @@ def main():
     parser.add_argument("--weight-decay", type=float, default=0.01)
     parser.add_argument("--clip-grad-norm", action=BooleanOptionalAction, default=True)
 
-    parser.add_argument("--eval-every", type=int, default=10_000)
+    parser.add_argument("--eval-every", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=12345)
     parser.add_argument("--results-path", type=str, default=None)
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--num-workers", type=int, default=2)
+    parser.add_argument("--num-workers", type=int, default=pool_size)
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -70,8 +73,8 @@ def main():
     model = UNetVDM(cfg)
     print_model_summary(model, batch_size=cfg.batch_size, shape=(3, 32, 32))
     with accelerator.local_main_process_first():
-        train_set = make_cifar(train=True, download=accelerator.is_local_main_process)
-    validation_set = make_cifar(train=False, download=False)
+        train_set = make_celeb_a(train=True, download=accelerator.is_local_main_process)
+    validation_set = make_celeb_a(train=False, download=False)
     diffusion = VDM(model, cfg, image_shape=train_set[0][0].shape)
     Trainer(
         diffusion,
