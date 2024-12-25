@@ -17,8 +17,6 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.datasets import CIFAR10, CelebA
-from torchvision.transforms import functional as F
-from torchvision.transforms import Compose, Resize, ToTensor
 from tqdm.auto import tqdm
 
 
