@@ -44,7 +44,7 @@ def main():
     parser.add_argument("--n-attention-heads", type=int, default=1)
     parser.add_argument("--dropout-prob", type=float, default=0.1)
     parser.add_argument("--norm-groups", type=int, default=32)
-    parser.add_argument("--input-channels", type=int, default=3)
+    parser.add_argument("--input-channels", type=int, default=3+4)
     parser.add_argument("--use-fourier-features", action=BooleanOptionalAction, default=True)
     parser.add_argument("--attention-everywhere", action=BooleanOptionalAction, default=False)
 
@@ -71,11 +71,15 @@ def main():
     cfg = init_config_from_args(TrainConfig, args)
 
     model = UNetVDM(cfg)
-    print_model_summary(model, batch_size=cfg.batch_size, shape=(3, 32, 32))
     with accelerator.local_main_process_first():
         train_set = make_celeb_a(train=True, download=accelerator.is_local_main_process)
     validation_set = make_celeb_a(train=False, download=False)
-    diffusion = VDM(model, cfg, image_shape=train_set[0][0].shape)
+
+    _, image_width, image_height = train_set[0][0].shape
+    image_shape = (args.input_channels, image_width, image_height)
+    diffusion = VDM(model, cfg, image_shape=image_shape)
+    print_model_summary(model, batch_size=cfg.batch_size, shape=image_shape)
+
     Trainer(
         diffusion,
         train_set,
@@ -244,7 +248,7 @@ class Trainer:
             self.clip_samples,
         )
         path = self.path / f"sample-{'ema-' if is_ema else ''}{self.step}.png"
-        save_image(samples, str(path), nrow=int(math.sqrt(self.num_samples)))
+        save_image(samples[:,:3], str(path), nrow=int(math.sqrt(self.num_samples)))
         model.train(train_state)
 
 

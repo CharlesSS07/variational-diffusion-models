@@ -193,13 +193,16 @@ def make_cifar(*, train, download):
         transform=transforms.Compose([transforms.ToTensor()]),
     )
 
-def make_celeb_a(*, train, download, size=48):
-    return CelebA(
+def make_celeb_a(*, train, download, down_factor:int=4):
+    assert down_factor>=1, 'dont up-sample.'
+    celeb_a_size = (218, 178) # h, w
+    new_size = (celeb_a_size[0]//down_factor, celeb_a_size[1]//down_factor)
+    return CelebA( # all celeb a is 178×218
         root="data",
         download=download,
         split='train' if train else 'valid',
         transform=transforms.Compose([
-            transforms.Resize(size),
+            transforms.Resize(new_size),
             transforms.ToTensor()
         ])
     )

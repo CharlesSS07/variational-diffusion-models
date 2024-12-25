@@ -13,6 +13,7 @@ class VDM(nn.Module):
         self.model = model
         self.cfg = cfg
         self.image_shape = image_shape
+        self.generate_fixed_positional_encoding()
         self.vocab_size = 256
         if cfg.noise_schedule == "fixed_linear":
             self.gamma = FixedLinearSchedule(cfg.gamma_min, cfg.gamma_max)
@@ -24,6 +25,26 @@ class VDM(nn.Module):
     @property
     def device(self):
         return next(self.model.parameters()).device
+
+    def generate_fixed_positional_encoding(self):
+        """
+        Generate a positional encoding grid.
+        Returns:
+            torch.Tensor: Positional encoding of shape (4, height, width).
+        """
+        _, width, height = self.image_shape
+        y_grid, x_grid = torch.meshgrid(
+            torch.linspace(0, 1, steps=width),
+            torch.linspace(0, 1, steps=height),
+            indexing="ij"
+        )
+        # Stack to create (2, H, W), where the first channel is y and the second is x
+        p = torch.stack([y_grid, x_grid], dim=0)
+        # encode distance from left, right, top, and bottom, (4, H, W)
+        self.register_buffer(
+            'positional_encoding',
+            torch.cat([p, torch.flip(p, dims=[1,2])], dim=0)
+        )
 
     @torch.no_grad()
     def sample_p_s_t(self, z, t, s, clip_samples):
@@ -77,7 +98,7 @@ class VDM(nn.Module):
 
     def forward(self, batch, *, noise=None):
         x, label = maybe_unpack_batch(batch)
-        assert x.shape[1:] == self.image_shape
+        assert x.shape[-2:] == self.image_shape[-2:], f'{x.shape} and {self.image_shape}'
         assert 0.0 <= x.min() and x.max() <= 1.0, f'min: {x.min()}, max: {x.max()}'
         bpd_factor = 1 / (np.prod(x.shape[1:]) * np.log(2))
 
@@ -88,7 +109,14 @@ class VDM(nn.Module):
         assert allclose(img_int / (self.vocab_size - 1), x)
 
         # Rescale integer image to [-1 + 1/vocab_size, 1 - 1/vocab_size]
-        x = 2 * ((img_int + 0.5) / self.vocab_size) - 1
+        # and add positional encoding because this is only for cropped, centered faces
+        x = torch.cat(
+            [
+                2 * ((img_int + 0.5) / self.vocab_size) - 1,
+                torch.stack([ self.positional_encoding for _ in range(x.shape[0]) ]),
+            ],
+            dim=1
+        )
 
         # Sample from q(x_t | x_0) with random t.
         times = self.sample_times(x.shape[0]).requires_grad_(True)
