@@ -7,7 +7,7 @@ in the spirit of *probabilistic* generative modeling.
 This implementation should match the 
 [official one](https://github.com/google-research/vdm) in JAX. 
 However, the purpose is mainly educational and the focus is on simplicity.
-So far, the repo only includes CIFAR10, and variance minimization 
+So far, the repo only includes CIFAR10, CelebA, and variance minimization 
 with the $\gamma_{\eta}$ network (see Appendix `I.2` in the paper) is not 
 implemented (it's only used for CIFAR10 *with augmentations* and, according 
 to the paper, it does not have a significant impact).
